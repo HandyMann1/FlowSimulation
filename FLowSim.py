@@ -7,7 +7,18 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 
 class FlowSimulator:
+    """
+    A class to simulate fluid flow through a capillary. It uses Tkinter for the GUI
+    and Matplotlib for visualization.
+    """
+
     def __init__(self, root):
+        """
+        Initializes the FlowSimulator object.
+
+        Parameters:
+            root (tk.Tk): The main Tkinter window.
+        """
         self.root = root
         self.root.title("Симуляция потока жидкости")
         self.root.geometry("1600x900")
@@ -30,6 +41,9 @@ class FlowSimulator:
         self.animate()
 
     def create_widgets(self):  # инициализируем GUI
+        """
+        GUI initialization.
+        """
         control_frame = ttk.LabelFrame(self.root, text="Параметры")
         control_frame.pack(side=tk.LEFT, padx=10, pady=10)
 
@@ -71,12 +85,18 @@ class FlowSimulator:
         self.pause_btn.grid(row=7, column=0, columnspan=2, pady=10)
 
     def toggle_pause(self):  # поставить анимацию на паузу
+        """
+        Toggles the pause of the animation.
+        """
         self.paused = not self.paused
         self.pause_btn['text'] = "Продолжить" if self.paused else "Пауза"
         if not self.paused:
             self.animate()
 
     def create_plot(self):
+        """
+        Creates the Matplotlib plot and places it inside the Tkinter window.
+        """
         self.fig = plt.Figure(figsize=(8, 4), dpi=100)
         self.ax = self.fig.add_subplot(111)
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.root)
@@ -89,6 +109,9 @@ class FlowSimulator:
         self.update_params()
 
     def update_params(self):
+        """
+        Updates the simulation parameters based on the values in the GUI entry fields.
+        """
         self.params['temperature'] = float(self.temp_entry.get())
         self.params['viscosity'] = float(self.visc_entry.get())
         self.params['density'] = float(self.dens_entry.get())
@@ -105,6 +128,9 @@ class FlowSimulator:
 
     def animate(self):
         # TODO добавить векторные стрелочки направления
+        """
+        Animates the fluid flow simulation. Called repeatedly.
+        """
         if self.paused:  # пауза при нажатии
             return
         fluid = Fluid(  # инициализируем жидкость
@@ -135,10 +161,7 @@ class FlowSimulator:
                 self.lam_y = np.random.uniform(-diameter, diameter, 100)
             self.particles_y = self.lam_y
             self.particles_vx = np.random.uniform(0.1, self.params['particles_vx'], 100)
-
-
         else:
-
             self.particles_y = self.particles_y + self.particles_vy * np.random.uniform(-0.1, 0.1, 100)
             self.particles_vy = np.random.uniform(-self.params['particles_vy'], self.params['particles_vy'], 100)
             self.particles_y = np.clip(self.particles_y, -diameter, diameter)
@@ -167,16 +190,48 @@ class FlowSimulator:
 
 
 class Fluid:  # характеристики жидкости + находим число Рейнольдса
+    """
+    A class to represent fluid properties and calculations.
+    """
+
     def __init__(self, temperature, viscosity_neutral, density):
+        """
+        Initializes the Fluid object.
+
+        Parameters
+        --------------
+        temperature: float
+            the temperature of the liquid (°C)
+        viscosity_neutral: float
+            the viscosity of the liquid in neutral state (Pascal * second)
+        density: float
+            the density of the liquid (kg/m^3)
+        """
         self.temperature = temperature
         self.viscosity_neutral = viscosity_neutral
         self.density = density
         self.viscosity = self.calculate_viscosity()
 
     def calculate_viscosity(self):
+        """
+        Calculates the viscosity of the fluid based on its temperature.
+
+        Returns:
+            float: The calculated viscosity.
+        """
         return self.viscosity_neutral  # TODO доделать вычисление по формуле
 
     def reynolds_number(self, velocity, diameter):
+        """
+        Calculates the Reynolds number
+
+        Parameters:
+            velocity (float): the speed of the flow(m/s)
+            diameter: (float): the diameter of the capillary(meters)
+
+        Returns:
+            float: calculated Reynolds number
+        """
         return (self.density * velocity * diameter) / self.viscosity
 
 
