@@ -18,10 +18,12 @@ class FlowSimulator:
             'viscosity': 0.001,
             'density': 1000,
             'min_width': 0.1,
-            'max_width': 0.5,
+            'max_width': 1,
             'particles_vx': 0.3,
             'particles_vy': 0.1
         }
+        self.particles_vx = None
+        self.lam_y = None
 
         self.create_widgets()
         self.create_plot()
@@ -46,7 +48,7 @@ class FlowSimulator:
         self.dens_entry.insert(0, self.params['density'])
         self.dens_entry.grid(row=2, column=1)
 
-        ttk.Label(control_frame, text="Макс. ширина капиляра:").grid(row=3, column=0, padx=5, pady=5)
+        ttk.Label(control_frame, text="Ширина капиляра:").grid(row=3, column=0, padx=5, pady=5)
         self.maxw_entry = ttk.Entry(control_frame, width=10)
         self.maxw_entry.insert(0, self.params['max_width'])
         self.maxw_entry.grid(row=3, column=1)
@@ -82,9 +84,9 @@ class FlowSimulator:
         self.canvas.get_tk_widget().pack(side=tk.RIGHT, fill=tk.BOTH, expand=1)
 
         self.particles_x = np.linspace(0, self.capilar_length, 100)
-        self.particles_y = np.random.uniform(-0.5, 0.5, 100)
-        self.particles_vx = np.random.uniform(0.1, 0.5, 100)
+        self.particles_y = np.random.uniform(0, self.params['max_width'], 100)
         self.particles_vy = np.random.uniform(-self.params['particles_vy'], self.params['particles_vy'], 100)
+        self.update_params()
 
     def update_params(self):
         self.params['temperature'] = float(self.temp_entry.get())
@@ -95,10 +97,11 @@ class FlowSimulator:
         self.params['particles_vy'] = float(self.vy_entry.get())
 
         self.particles_x = np.linspace(0, self.capilar_length, 100)
-        self.particles_y = np.random.uniform(-self.params['max_width'],
-                                             self.params['max_width'], 100)
+        self.particles_y = np.random.uniform(0, self.params['max_width'], 100)
+
         self.particles_vx = np.random.uniform(0.1, self.params['particles_vx'], 100)
         self.particles_vy = np.random.uniform(-self.params['particles_vy'], self.params['particles_vy'], 100)
+        self.lam_y = np.random.uniform(-self.params['max_width'], self.params['max_width'], 100)
 
     def animate(self):
         # TODO добавить векторные стрелочки направления
@@ -106,7 +109,7 @@ class FlowSimulator:
             return
         fluid = Fluid(  # инициализируем жидкость
             temperature=self.params['temperature'],
-            viscosity=self.params['viscosity'],
+            viscosity_neutral=self.params['viscosity'],
             density=self.params['density']
         )
 
@@ -120,10 +123,10 @@ class FlowSimulator:
         self.ax.set_xlabel('Длина капиляра')
         self.ax.set_ylabel('Ширина капиляра')
         self.ax.set_xlim(0, self.capilar_length)
-        self.ax.set_ylim(-self.params['max_width'], self.params['max_width'])
+        self.ax.set_ylim(0, self.params['max_width'])
         self.ax.grid(True)
-        self.ax.fill_between(np.linspace(0, self.capilar_length, 100), -diameter, diameter, alpha=0.2,
-                             color=color)  # заполняем соответствующим цветом в зависимости от вида потока
+        self.ax.fill_between(np.linspace(0, self.capilar_length, 100), 0, diameter, alpha=0.2, color=color)
+        # заполняем соответствующим цветом в зависимости от вида потока
 
         self.particles_x = (self.particles_x + self.particles_vx) % self.capilar_length
 
@@ -140,16 +143,38 @@ class FlowSimulator:
             self.particles_vy = np.random.uniform(-self.params['particles_vy'], self.params['particles_vy'], 100)
             self.particles_y = np.clip(self.particles_y, -diameter, diameter)
 
+        for i in range(len(self.particles_x)):
+            x = self.particles_x[i]
+            y = self.particles_y[i]
+            vx = self.particles_vx[i]
+            vy = self.particles_vy[i]
+
+            length = np.sqrt(vx ** 2 + vy ** 2)
+            if length > 0:
+                norm_vx = vx / length * 0.1
+                norm_vy = vy / length * 0.1
+            else:
+                norm_vx = 0
+                norm_vy = 0
+
+            self.ax.arrow(x, y, norm_vx, norm_vy,
+                          head_width=0.005, head_length=0.01,
+                          color='black', alpha=0.5)
+
         self.ax.scatter(self.particles_x, self.particles_y, s=self.capilar_length, color='black')
         self.canvas.draw()
         self.root.after(50, self.animate)
 
 
 class Fluid:  # характеристики жидкости + находим число Рейнольдса
-    def __init__(self, temperature, viscosity, density):
+    def __init__(self, temperature, viscosity_neutral, density):
         self.temperature = temperature
-        self.viscosity = viscosity
+        self.viscosity_neutral = viscosity_neutral
         self.density = density
+        self.viscosity = self.calculate_viscosity()
+
+    def calculate_viscosity(self):
+        return self.viscosity_neutral  # TODO доделать вычисление по формуле
 
     def reynolds_number(self, velocity, diameter):
         return (self.density * velocity * diameter) / self.viscosity
