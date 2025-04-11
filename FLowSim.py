@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-
 class FlowSimulator:
     def __init__(self, root):
         self.root = root
@@ -12,8 +11,8 @@ class FlowSimulator:
         self.root.geometry("1600x900")
         self.paused = False
         self.capilar_length = 10
-        self.params = {'temperature': 20, 'viscosity': 0.001, 'density': 1000, 'min_width': 0.1, 'max_width': 1,
-                       'particles_vx': 0.3, 'particles_vy': 0.1}
+        self.params = {'temperature': 293, 'viscosity': 0.1, 'density': 1000, 'min_width': 0.1, 'max_width': 1,
+                       'particles_vx': 0.3, 'particles_vy': 0.1, 'Ea': 1000, 'T0': 273, 'R': 8.314}
         self.particles_vx = None
         self.lam_y = None
         self.create_widgets()
@@ -32,16 +31,19 @@ class FlowSimulator:
             return entry
 
         self.temp_entry = add_label_entry(control_frame, "Температура (°C):", 0, 'temperature')
-        self.visc_entry = add_label_entry(control_frame, "Вязкость (Па·с):", 1, 'viscosity')
+        self.visc_entry = add_label_entry(control_frame, "Начальная вязкость (Па·с):", 1, 'viscosity')
         self.dens_entry = add_label_entry(control_frame, "Плотность (кг/м³):", 2, 'density')
         self.maxw_entry = add_label_entry(control_frame, "Ширина капилляра:", 3, 'max_width')
         self.vx_entry = add_label_entry(control_frame, "Скорость по X:", 4, 'particles_vx')
         self.vy_entry = add_label_entry(control_frame, "Скорость по Y:", 5, 'particles_vy')
+        self.Ea_entry = add_label_entry(control_frame, "Активационная энергия (Дж/моль):", 6, 'Ea')
+        self.T0_entry = add_label_entry(control_frame, "Базовая температура (К):", 7, 'T0')
+        self.R_entry = add_label_entry(control_frame, "Газовая постоянная (Дж/(моль·К)): ", 8, 'R')
 
         self.update_btn = ttk.Button(control_frame, text="Обновить параметры", command=self.update_params)
-        self.update_btn.grid(row=6, column=0, columnspan=2, pady=10)
+        self.update_btn.grid(row=9, column=0, columnspan=2, pady=10)
         self.pause_btn = ttk.Button(control_frame, text="Пауза", command=self.toggle_pause)
-        self.pause_btn.grid(row=7, column=0, columnspan=2, pady=10)
+        self.pause_btn.grid(row=10, column=0, columnspan=2, pady=10)
 
     def toggle_pause(self):
         self.paused = not self.paused
@@ -66,6 +68,9 @@ class FlowSimulator:
         self.params['max_width'] = float(self.maxw_entry.get())
         self.params['particles_vx'] = float(self.vx_entry.get())
         self.params['particles_vy'] = float(self.vy_entry.get())
+        self.params['Ea'] = float(self.Ea_entry.get())
+        self.params['T0'] = float(self.T0_entry.get())
+        self.params['R'] = float(self.R_entry.get())
         self.particles_x = np.zeros(25)
         self.particles_y = np.linspace(self.params['max_width']/43, self.params['max_width']-self.params['max_width']/43, 25)
         self.particles_vx = np.full(25, self.params['particles_vx'])
@@ -75,7 +80,7 @@ class FlowSimulator:
         if self.paused:
             return
         fluid = Fluid(temperature=self.params['temperature'], viscosity_neutral=self.params['viscosity'],
-                      density=self.params['density'])
+                      density=self.params['density'], Ea=self.params['Ea'], T0=self.params['T0'], R=self.params['R'])
         diameter = self.params['min_width'] + (self.params['max_width'] - self.params['min_width']) * np.sin(np.pi / 2)
         re = fluid.reynolds_number(np.mean(self.particles_vx), diameter)
         self.ax.clear()
@@ -96,17 +101,20 @@ class FlowSimulator:
 
 
 class Fluid:
-    def __init__(self, temperature, viscosity_neutral, density):
+    def __init__(self, temperature, viscosity_neutral, density, Ea, T0, R):
         self.temperature = temperature
         self.viscosity_neutral = viscosity_neutral
         self.density = density
-        self.viscosity = self.calculate_viscosity()
+        self.Ea = Ea
+        self.T0 = T0
+        self.R = R
+        self.temp_effect = self.calculate_temp_effect()
 
-    def calculate_viscosity(self):
-        return self.viscosity_neutral
+    def calculate_temp_effect(self):
+        return np.exp(self.Ea / (self.R * self.T0**2) * (self.temperature - self.T0))
 
     def reynolds_number(self, velocity, diameter):
-        return (self.density * velocity * diameter) / self.viscosity
+        return (self.density * velocity * diameter) / self.viscosity_neutral * self.temp_effect
 
 
 if __name__ == "__main__":
