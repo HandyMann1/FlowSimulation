@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+
 class FlowSimulator:
     def __init__(self, root):
         self.root = root
@@ -30,7 +31,7 @@ class FlowSimulator:
             entry.grid(row=row, column=1)
             return entry
 
-        self.temp_entry = add_label_entry(control_frame, "Температура (°C):", 0, 'temperature')
+        self.temp_entry = add_label_entry(control_frame, "Температура (K):", 0, 'temperature')
         self.visc_entry = add_label_entry(control_frame, "Начальная вязкость (Па·с):", 1, 'viscosity')
         self.dens_entry = add_label_entry(control_frame, "Плотность (кг/м³):", 2, 'density')
         self.maxw_entry = add_label_entry(control_frame, "Ширина капилляра:", 3, 'max_width')
@@ -72,7 +73,8 @@ class FlowSimulator:
         self.params['T0'] = float(self.T0_entry.get())
         self.params['R'] = float(self.R_entry.get())
         self.particles_x = np.zeros(25)
-        self.particles_y = np.linspace(self.params['max_width']/43, self.params['max_width']-self.params['max_width']/43, 25)
+        self.particles_y = np.linspace(self.params['max_width'] / 43,
+                                       self.params['max_width'] - self.params['max_width'] / 43, 25)
         self.particles_vx = np.full(25, self.params['particles_vx'])
         self.particles_vy = np.zeros(25)
 
@@ -111,7 +113,7 @@ class Fluid:
         self.temp_effect = self.calculate_temp_effect()
 
     def calculate_temp_effect(self):
-        return np.exp(self.Ea / (self.R * self.T0**2) * (self.temperature - self.T0))
+        return np.exp(self.Ea / (self.R * self.T0 ** 2) * (self.temperature - self.T0))
 
     def reynolds_number(self, velocity, diameter):
         return (self.density * velocity * diameter) / self.viscosity_neutral * self.temp_effect
