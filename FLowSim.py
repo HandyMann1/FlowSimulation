@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import ttk
-
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -18,6 +17,7 @@ class FlowSimulator:
                        'pressure_start': 101325,
                        'pressure_end': 100000}
         self.viscosity = self.calculate_viscosity()
+        self.animation_reset = False
 
         self.create_widgets()
         self.create_plot()
@@ -105,12 +105,29 @@ class FlowSimulator:
         self.ax.fill_between(np.linspace(0, self.params['capillary_length'], 25), 0, self.params["max_width"],
                              alpha=0.2, color='blue')
 
-        self.particles_x = (self.particles_x + self.particles_vx) % self.params['capillary_length']
-        for i in range(len(self.particles_x)):
-            x = self.particles_x[i]
-            y = self.particles_y[i]
-            self.ax.arrow(0, y, x, 0, head_width=self.params["max_width"] * 0.04,
-                          head_length=self.params["capillary_length"] * 0.01, fc='black', ec='black', alpha=0.5)
+        self.particles_x += self.particles_vx
+
+        if np.any(self.particles_x >= self.params['capillary_length']):
+            self.particles_x = np.zeros(25)
+            self.animation_reset = True
+
+        if self.animation_reset:
+            self.animation_reset = False
+            for i in range(len(self.particles_x)):
+                y = self.particles_y[i]
+                self.ax.arrow(0, y, 0.01, 0,
+                              head_width=self.params["max_width"] * 0.04,
+                              head_length=self.params["capillary_length"] * 0.01,
+                              fc='black', ec='black', alpha=0.5)
+        else:
+            for i in range(len(self.particles_x)):
+                x = self.particles_x[i]
+                y = self.particles_y[i]
+                self.ax.arrow(0, y, x, 0,
+                              head_width=self.params["max_width"] * 0.04,
+                              head_length=self.params["capillary_length"] * 0.01,
+                              fc='black', ec='black', alpha=0.5)
+
         self.canvas.draw()
         self.root.after(50, self.animate)
 
