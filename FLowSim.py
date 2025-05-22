@@ -8,9 +8,26 @@ from matplotlib.patches import FancyArrowPatch
 class FlowSimulator:
     """
     Класс для симуляции потока жидкости в капилляре с визуализацией и интерактивным управлением параметрами.
+
+    Атрибуты:
+        root (tk.Tk): корневое окно Tkinter.
+        params (dict): словарь параметров симуляции, включая температуру, вязкость, плотность, размеры капилляра и давления.
+        viscosity (float): вычисленная вязкость с учетом температуры.
+        paused (bool): флаг паузы анимации.
+        animation_reset (bool): флаг сброса анимации.
+        particles_x (np.ndarray): координаты частиц по оси X.
+        particles_y (np.ndarray): координаты частиц по оси Y.
+        particles_vx (np.ndarray): скорости частиц по оси X.
+        arrow_patches (list): список объектов FancyArrowPatch для анимации стрелок.
     """
 
     def __init__(self, root):
+        """
+        Инициализация интерфейса и параметров симуляции.
+
+        Args:
+            root (tk.Tk): корневое окно Tkinter.
+        """
         self.root = root
         self.root.title("Симуляция потока жидкости")
         self.root.geometry("1600x900")
@@ -40,6 +57,9 @@ class FlowSimulator:
         self.animate()
 
     def create_widgets(self):
+        """
+        Создает панель управления с виджетами для ввода параметров и кнопками управления.
+        """
         control_frame = ttk.LabelFrame(self.root, text="Параметры")
         control_frame.pack(side=tk.LEFT, padx=10, pady=10)
 
@@ -70,12 +90,19 @@ class FlowSimulator:
         self.visc_info_label.grid(row=14, column=0, columnspan=2, pady=10)
 
     def toggle_pause(self):
+        """
+        Переключает состояние паузы анимации и меняет текст кнопки.
+        """
         self.paused = not self.paused
         self.pause_btn['text'] = "Продолжить" if self.paused else "Пауза"
         if not self.paused:
             self.animate()
 
     def create_plot(self):
+        """
+        Создает график Matplotlib и встраивает его в окно Tkinter.
+        Инициализирует координаты частиц.
+        """
         self.fig = plt.Figure(figsize=(8, 4), dpi=100)
         self.ax = self.fig.add_subplot(111)
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.root)
@@ -86,6 +113,10 @@ class FlowSimulator:
         self.update_params()
 
     def update_params(self):
+        """
+        Обновляет параметры симуляции из полей ввода, пересчитывает вязкость и скорости частиц,
+        обновляет метку с информацией о вязкости.
+        """
         self.params['temperature'] = float(self.temp_entry.get())
         self.params['viscosity'] = float(self.visc_entry.get())
         self.params['density'] = float(self.dens_entry.get())
@@ -105,6 +136,12 @@ class FlowSimulator:
         self.update_viscosity_info()
 
     def calculate_particle_speed(self):
+        """
+        Рассчитывает профиль скоростей частиц в капилляре по формуле ламинарного потока.
+
+        Returns:
+            np.ndarray: массив скоростей частиц по оси X.
+        """
         press_diff = self.params["pressure_start"] - self.params["pressure_end"]
         denominator = 4 * self.viscosity * self.params["capillary_length"]
         R = self.params["max_width"] / 2
@@ -113,6 +150,10 @@ class FlowSimulator:
         return (press_diff / denominator) * r_sqr_diff
 
     def animate(self):
+        """
+        Анимация движения частиц по капилляру.
+        Обновляет график, отображает число Рейнольдса и перерисовывает частицы.
+        """
         if self.paused:
             return
 
@@ -177,18 +218,40 @@ class FlowSimulator:
         self.root.after(10, self.animate)
 
     def calculate_viscosity(self):
+        """
+        Вычисляет вязкость жидкости с учетом температуры по формуле:
+        η = η0 * exp(-Ea / (R * T0^2) * (T - T0))
+
+        Returns:
+            float: вычисленная вязкость.
+        """
         return self.params["viscosity"] * np.exp(
             -(self.params["Ea"] / (self.params["R"] * self.params["T0"] ** 2)) *
             (self.params["temperature"] - self.params["T0"])
         )
 
     def reynolds_number(self, velocity):
+        """
+        Вычисляет число Рейнольдса для текущих параметров.
+
+        Args:
+            velocity (float): средняя скорость жидкости.
+
+        Returns:
+            float: число Рейнольдса.
+        """
         return (self.params["density"] * velocity * self.params["max_width"]) / self.viscosity
 
     def create_viscosity_info_label(self):
+        """
+        Инициализирует метку для отображения информации о вязкости и числе Рейнольдса.
+        """
         self.update_viscosity_info()
 
     def update_viscosity_info(self):
+        """
+        Обновляет текст метки с информацией о числе Рейнольдса и влиянии вязкости.
+        """
         avg_velocity = np.mean(self.particles_vx)
         Re = self.reynolds_number(avg_velocity)
 
